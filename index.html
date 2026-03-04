@@ -1,112 +1,7 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Official Lucky Wheel</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <style>
-        * { box-sizing: border-box; }
-        body { font-family: 'Arial Black', sans-serif; text-align: center; background: #111; color: white; margin: 0; display: flex; height: 100vh; width: 100vw; overflow: hidden; }
-
-        .setup-side { 
-            width: 300px; background: #222; padding: 20px; height: 100%; text-align: left; 
-            box-shadow: 5px 0 15px rgba(0,0,0,0.7); z-index: 1000; position: absolute;
-            left: 0; top: 0; transition: transform 0.4s ease-in-out; overflow-y: auto; border-right: 3px solid #f1c40f; 
-        }
-        .sidebar-hidden .setup-side { transform: translateX(-100%); }
-
-        .history-side {
-            width: 250px; background: rgba(0,0,0,0.8); height: 100%; position: absolute; right: 0; top: 0;
-            padding: 20px; text-align: left; border-left: 1px solid #333; overflow-y: auto; z-index: 100;
-            transition: transform 0.4s;
-        }
-        .sidebar-hidden .history-side { transform: translateX(100%); }
-
-        .wheel-side { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(#333, #000); position: relative; width: 100%; }
-
-        #prizeTitle { color: #2ecc71; font-size: clamp(24px, 5vh, 45px); margin: 0 0 1vh 0; font-weight: 900; text-shadow: 0 0 15px rgba(46, 204, 113, 0.6); }
-
-        #wheel-container { position: relative; height: 65vh; width: 65vh; max-width: 85vw; max-height: 85vw; display: flex; align-items: center; justify-content: center; }
-        
-        canvas#canvas { 
-            width: 100% !important; height: 100% !important; 
-            transition: transform 8s cubic-bezier(0.1, 0, 0, 1); 
-            border-radius: 50%; border: 12px solid #fff; box-shadow: 0 0 40px rgba(0,0,0,0.8); z-index: 5; 
-        }
-        
-        .pointer { 
-            position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
-            width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 35px solid #ff4757; 
-            z-index: 500; filter: drop-shadow(0 4px 2px rgba(0,0,0,0.6));
-        }
-
-        #center-box {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 55%; height: 35%; background: #000; border: 6px solid #f1c40f;
-            border-radius: 20px; z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-
-        .winner-active { animation: pulse-gold 0.6s infinite alternate; border-color: #fff !important; }
-        @keyframes pulse-gold { from { transform: translate(-50%, -50%) scale(1); } to { transform: translate(-50%, -50%) scale(1.1); } }
-
-        #prizeDisplay, #winnerDisplay { font-size: clamp(20px, 5vh, 42px); font-weight: 900; text-transform: uppercase; margin: 2px 0; line-height: 1.1; }
-        #prizeDisplay { color: #2ecc71; }
-        #winnerDisplay { color: #f1c40f; }
-        
-        .controls { display: flex; flex-direction: column; gap: 10px; margin-top: 2vh; align-items: center; z-index: 200; }
-        #spinBtn { width: 320px; font-size: 28px; padding: 18px; background: #e67e22; color: white; border: none; border-radius: 60px; cursor: pointer; font-weight: 800; box-shadow: 0 8px 25px rgba(230, 126, 34, 0.5); }
-        #uiToggleBtn { background: #333; color: #888; border: none; padding: 8px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; }
-
-        textarea { width: 100%; height: 180px; margin-bottom: 15px; border-radius: 5px; padding: 10px; font-size: 12px; border: none; background: #eee; color: #333; }
-        label { font-size: 12px; color: #f1c40f; display: block; margin-bottom: 5px; font-weight: bold; }
-        
-        .log-entry { font-size: 14px; padding: 8px 0; border-bottom: 1px solid #444; color: #ccc; text-align: left;}
-        .log-entry b { color: #f1c40f; }
-    </style>
-</head>
-<body class="sidebar-hidden">
-
-<div class="setup-side" id="sidebar">
-    <h2 style="margin:0 0 20px 0; color:#fff; border-bottom: 1px solid #444; padding-bottom: 10px;">SETUP</h2>
-    <label>1. PRIZES:</label>
-    <textarea id="prizeInput">RM100
-RM80
-RM50</textarea>
-    <label>2. NAMES:</label>
-    <textarea id="nameInput">Name1
-Name2
-Name3
-Name4</textarea>
-    <button onclick="updateAll()" style="background:#27ae60; color:white; padding:15px; width:100%; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">SAVE & START</button>
-</div>
-
-<div class="history-side" id="history">
-    <h3 style="color:#f1c40f; margin-top:0;">WINNER LOG</h3>
-    <div id="logList"></div>
-</div>
-
-<div class="wheel-side">
-    <h1 id="prizeTitle">READY</h1>
-    <div id="wheel-container">
-        <div class="pointer"></div>
-        <canvas id="canvas" width="1200" height="1200"></canvas>
-        <div id="center-box">
-            <div id="prizeDisplay">--</div>
-            <div id="winnerDisplay">READY</div>
-        </div>
-    </div>
-    <div class="controls">
-        <button id="spinBtn" onclick="spinWheel()">SPIN FOR PRIZE</button>
-        <button id="uiToggleBtn" onclick="toggleUI()">⚙️ SETTINGS & LOG</button>
-    </div>
-</div>
-
-<script>
-    let names = [];
+let names = [];
     let prizePool = [];
     let currentRotation = 0;
-    let lastWinnerIndex = -1;
+    let lastWinnerIndex = -1; // Tracks who just won
     let roundCounter = 0; 
     
     const canvas = document.getElementById('canvas');
@@ -149,21 +44,26 @@ Name4</textarea>
     function updateAll() {
         names = document.getElementById('nameInput').value.split('\n').filter(n => n.trim() !== "");
         prizePool = document.getElementById('prizeInput').value.split('\n').filter(p => p.trim() !== "");
-        roundCounter = 0; lastWinnerIndex = -1;
+        roundCounter = 0; 
+        lastWinnerIndex = -1;
         document.getElementById('logList').innerHTML = "";
         showNextPrize();
         document.getElementById('winnerDisplay').innerText = "READY";
         drawWheel();
-        toggleUI();
+        // Hide sidebar after setup
+        document.body.classList.add('sidebar-hidden');
     }
 
     function showNextPrize() {
-        // Now shows "Prize #38", "Prize #37" based on remaining names
-        document.getElementById('prizeTitle').innerText = "PRIZE #" + names.length;
+        document.getElementById('prizeTitle').innerText = "PRIZE #" + (roundCounter + 1);
         document.getElementById('prizeDisplay').innerText = prizePool[roundCounter] || "RM --";
     }
 
     function drawWheel() {
+        if (names.length === 0) {
+            ctx.clearRect(0,0,1200,1200);
+            return;
+        }
         const sliceDeg = 360 / names.length;
         ctx.clearRect(0,0,1200,1200);
         names.forEach((name, i) => {
@@ -185,77 +85,79 @@ Name4</textarea>
     }
 
     function spinWheel() {
+        if (names.length === 0) return alert("Please add names in settings!");
         if (audioCtx.state === 'suspended') audioCtx.resume();
+        
+        // Remove visual winner effects
         document.getElementById('center-box').classList.remove('winner-active');
+
+        // CLEANUP STEP: If there was a previous winner, remove them now before the new spin
         if (lastWinnerIndex !== -1) {
             names.splice(lastWinnerIndex, 1);
             lastWinnerIndex = -1;
             roundCounter++; 
+            
+            // Instantly reset wheel to 0 so the next 3600deg spin looks correct
             canvas.style.transition = "none";
             canvas.style.transform = "rotate(0deg)";
+            
             drawWheel();
             showNextPrize();
-            setTimeout(actualSpin, 100);
-        } else { actualSpin(); }
+
+            // Check if we still have players
+            if (names.length === 0) {
+                document.getElementById('winnerDisplay').innerText = "FINISHED";
+                document.getElementById('prizeTitle').innerText = "ALL DONE";
+                return;
+            }
+
+            // Small delay to allow the "transition: none" to take effect before spinning again
+            setTimeout(actualSpin, 50);
+        } else { 
+            actualSpin(); 
+        }
     }
 
     function actualSpin() {
-    
-    document.getElementById('spinBtn').disabled = true;
-    document.getElementById('winnerDisplay').innerText = "SPINNING...";
+        document.getElementById('spinBtn').disabled = true;
+        document.getElementById('winnerDisplay').innerText = "SPINNING...";
 
-    
-    
-    const targetIndex = Math.floor(Math.random() * names.length);
-    
-   
-    const sliceDeg = 360 / names.length;
-    const randomOffset = (Math.random() * 0.8) + 0.1; 
-    const stopAngle = 360 - (targetIndex * sliceDeg) - (sliceDeg * randomOffset);
-    
-   
-    currentRotation = 3600 + stopAngle; 
-    canvas.style.transition = "transform 8s cubic-bezier(0.1, 0, 0, 1)";
-    canvas.style.transform = "rotate(" + currentRotation + "deg)";
-    
-    for (let j = 0; j < 60; j++) { 
-        setTimeout(playTick, j * j * 2.2); 
-    }
-    
-    setTimeout(() => {
-        const winnerName = names[targetIndex];
-        const currentPrize = prizePool[roundCounter] || "RM --";
+        // 1. Pick winner randomly (Fair)
+        const targetIndex = Math.floor(Math.random() * names.length);
         
-        document.getElementById('winnerDisplay').innerText = winnerName;
-        document.getElementById('center-box').classList.add('winner-active');
+        // 2. Calculate rotation
+        const sliceDeg = 360 / names.length;
+        const randomOffset = (Math.random() * 0.8) + 0.1; 
+        const stopAngle = 360 - (targetIndex * sliceDeg) - (sliceDeg * randomOffset);
         
+        currentRotation = 3600 + stopAngle; 
+        canvas.style.transition = "transform 8s cubic-bezier(0.1, 0, 0, 1)";
+        canvas.style.transform = "rotate(" + currentRotation + "deg)";
         
-        const logEntry = document.createElement('div');
-        logEntry.className = 'log-entry';
-        logEntry.innerHTML = `Prize #${roundCounter + 1}: <b>${winnerName}</b> - ${currentPrize}`;
-        document.getElementById('logList').prepend(logEntry);
-        
-        playFanfare(); 
-        fireConfetti();
-        
-        
-        names.splice(targetIndex, 1); 
-        roundCounter++; // Increment to the next prize
-        
-       
-        if (typeof drawWheel === "function") drawWheel();
-
-       
-        if (names.length > 0) {
-            document.getElementById('spinBtn').disabled = false;
-        } else {
-            document.getElementById('winnerDisplay').innerText = "No more names!";
+        // 3. Sound effect
+        for (let j = 0; j < 60; j++) { 
+            setTimeout(playTick, j * j * 2.2); 
         }
-    }, 8200);
-}
-</script>
-</body>
-
-</html>
-
-
+        
+        // 4. Reveal result
+        setTimeout(() => {
+            const winnerName = names[targetIndex];
+            const currentPrize = prizePool[roundCounter] || "RM --";
+            
+            document.getElementById('winnerDisplay').innerText = winnerName;
+            document.getElementById('center-box').classList.add('winner-active');
+            
+            // Add to history log
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `Prize #${roundCounter + 1}: <b>${winnerName}</b> - ${currentPrize}`;
+            document.getElementById('logList').prepend(logEntry);
+            
+            playFanfare(); 
+            fireConfetti();
+            
+            // Mark this index to be removed on the NEXT click
+            lastWinnerIndex = targetIndex;
+            document.getElementById('spinBtn').disabled = false;
+        }, 8200);
+    }
