@@ -1,7 +1,141 @@
-let names = [];
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Official Lucky Wheel - Fair Draw</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Arial Black', sans-serif; 
+            text-align: center; 
+            background: #111; 
+            color: white; 
+            margin: 0; 
+            display: flex; 
+            height: 100vh; 
+            width: 100vw; 
+            overflow: hidden; 
+        }
+
+        /* Sidebars */
+        .setup-side { 
+            width: 300px; background: #222; padding: 20px; height: 100%; text-align: left; 
+            box-shadow: 5px 0 15px rgba(0,0,0,0.7); z-index: 1000; position: absolute;
+            left: 0; top: 0; transition: transform 0.4s ease-in-out; overflow-y: auto; border-right: 3px solid #f1c40f; 
+        }
+        .sidebar-hidden .setup-side { transform: translateX(-100%); }
+
+        .history-side {
+            width: 280px; background: rgba(0,0,0,0.9); height: 100%; position: absolute; right: 0; top: 0;
+            padding: 20px; text-align: left; border-left: 1px solid #333; overflow-y: auto; z-index: 100;
+            transition: transform 0.4s;
+        }
+        .sidebar-hidden .history-side { transform: translateX(100%); }
+
+        /* Main Wheel Area */
+        .wheel-side { 
+            flex-grow: 1; display: flex; flex-direction: column; align-items: center; 
+            justify-content: center; background: radial-gradient(#333, #000); 
+            position: relative; width: 100%; 
+        }
+
+        #prizeTitle { color: #2ecc71; font-size: clamp(24px, 5vh, 45px); margin: 0 0 1vh 0; font-weight: 900; text-shadow: 0 0 15px rgba(46, 204, 113, 0.6); }
+
+        #wheel-container { position: relative; height: 65vh; width: 65vh; max-width: 85vw; max-height: 85vw; display: flex; align-items: center; justify-content: center; }
+        
+        canvas#canvas { 
+            width: 100% !important; height: 100% !important; 
+            transition: transform 8s cubic-bezier(0.1, 0, 0, 1); 
+            border-radius: 50%; border: 12px solid #fff; box-shadow: 0 0 40px rgba(0,0,0,0.8); z-index: 5; 
+        }
+        
+        .pointer { 
+            position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
+            width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 40px solid #ff4757; 
+            z-index: 500; filter: drop-shadow(0 4px 2px rgba(0,0,0,0.6));
+        }
+
+        #center-box {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 55%; height: 30%; background: #000; border: 6px solid #f1c40f;
+            border-radius: 20px; z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-shadow: inset 0 0 20px rgba(241, 196, 15, 0.2);
+        }
+
+        .winner-active { animation: pulse-gold 0.6s infinite alternate; border-color: #fff !important; }
+        @keyframes pulse-gold { from { transform: translate(-50%, -50%) scale(1); } to { transform: translate(-50%, -50%) scale(1.05); } }
+
+        #prizeDisplay, #winnerDisplay { font-size: clamp(18px, 4vh, 36px); font-weight: 900; text-transform: uppercase; margin: 2px 0; line-height: 1.1; }
+        #prizeDisplay { color: #2ecc71; }
+        #winnerDisplay { color: #f1c40f; }
+        
+        .controls { display: flex; flex-direction: column; gap: 10px; margin-top: 2vh; align-items: center; z-index: 200; }
+        #spinBtn { 
+            width: 320px; font-size: 24px; padding: 18px; background: #e67e22; color: white; 
+            border: none; border-radius: 60px; cursor: pointer; font-weight: 800; 
+            box-shadow: 0 8px 25px rgba(230, 126, 34, 0.5); transition: 0.2s;
+        }
+        #spinBtn:hover { background: #d35400; transform: translateY(-2px); }
+        #spinBtn:disabled { background: #555; cursor: not-allowed; box-shadow: none; }
+        
+        #uiToggleBtn { background: #333; color: #888; border: none; padding: 8px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+
+        textarea { width: 100%; height: 150px; margin-bottom: 15px; border-radius: 5px; padding: 10px; font-size: 12px; border: none; background: #eee; color: #333; font-family: sans-serif; }
+        label { font-size: 12px; color: #f1c40f; display: block; margin-bottom: 5px; font-weight: bold; }
+        
+        .log-entry { font-size: 14px; padding: 10px 0; border-bottom: 1px solid #333; color: #ccc; }
+        .log-entry b { color: #f1c40f; }
+    </style>
+</head>
+<body class="sidebar-hidden">
+
+<div class="setup-side" id="sidebar">
+    <h2 style="margin:0 0 20px 0; color:#fff; border-bottom: 1px solid #444; padding-bottom: 10px;">CONFIG</h2>
+    <label>1. PRIZE LIST (One per line):</label>
+    <textarea id="prizeInput">Grand Prize: RM500
+Second Prize: RM200
+Third Prize: RM100
+Consolation: RM50
+Consolation: RM50</textarea>
+    
+    <label>2. PARTICIPANTS (One per line):</label>
+    <textarea id="nameInput">Alice
+Bob
+Charlie
+David
+Eve
+Frank</textarea>
+    <button onclick="updateAll()" style="background:#27ae60; color:white; padding:15px; width:100%; border:none; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 16px;">SAVE & RESTART</button>
+</div>
+
+<div class="history-side" id="history">
+    <h3 style="color:#f1c40f; margin-top:0;">WINNER LOG</h3>
+    <div id="logList"></div>
+</div>
+
+<div class="wheel-side">
+    <h1 id="prizeTitle">READY</h1>
+    <div id="wheel-container">
+        <div class="pointer"></div>
+        <canvas id="canvas" width="1200" height="1200"></canvas>
+        <div id="center-box">
+            <div id="prizeDisplay">--</div>
+            <div id="winnerDisplay">READY</div>
+        </div>
+    </div>
+    <div class="controls">
+        <button id="spinBtn" onclick="spinWheel()">SPIN THE WHEEL</button>
+        <button id="uiToggleBtn" onclick="toggleUI()">⚙️ SETTINGS & HISTORY</button>
+    </div>
+</div>
+
+<script>
+    let names = [];
     let prizePool = [];
     let currentRotation = 0;
-    let lastWinnerIndex = -1; // Tracks who just won
+    let lastWinnerIndex = -1;
     let roundCounter = 0; 
     
     const canvas = document.getElementById('canvas');
@@ -30,8 +164,8 @@ let names = [];
     }
 
     function fireConfetti() {
-        var duration = 2500;
-        var end = Date.now() + duration;
+        const duration = 3000;
+        const end = Date.now() + duration;
         (function frame() {
             confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 } });
             confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 } });
@@ -50,13 +184,12 @@ let names = [];
         showNextPrize();
         document.getElementById('winnerDisplay').innerText = "READY";
         drawWheel();
-        // Hide sidebar after setup
         document.body.classList.add('sidebar-hidden');
     }
 
     function showNextPrize() {
-        document.getElementById('prizeTitle').innerText = "PRIZE #" + (roundCounter + 1);
-        document.getElementById('prizeDisplay').innerText = prizePool[roundCounter] || "RM --";
+        document.getElementById('prizeTitle').innerText = "DRAWING FOR:";
+        document.getElementById('prizeDisplay').innerText = prizePool[roundCounter] || "COMPLETED";
     }
 
     function drawWheel() {
@@ -85,33 +218,31 @@ let names = [];
     }
 
     function spinWheel() {
-        if (names.length === 0) return alert("Please add names in settings!");
+        if (names.length === 0) return alert("All participants have won!");
         if (audioCtx.state === 'suspended') audioCtx.resume();
         
-        // Remove visual winner effects
         document.getElementById('center-box').classList.remove('winner-active');
 
-        // CLEANUP STEP: If there was a previous winner, remove them now before the new spin
+        // Logic: If there was a winner from the previous round, remove them NOW.
         if (lastWinnerIndex !== -1) {
             names.splice(lastWinnerIndex, 1);
             lastWinnerIndex = -1;
             roundCounter++; 
             
-            // Instantly reset wheel to 0 so the next 3600deg spin looks correct
+            // Instantly reset wheel to 0 degrees
             canvas.style.transition = "none";
             canvas.style.transform = "rotate(0deg)";
             
             drawWheel();
             showNextPrize();
 
-            // Check if we still have players
             if (names.length === 0) {
                 document.getElementById('winnerDisplay').innerText = "FINISHED";
                 document.getElementById('prizeTitle').innerText = "ALL DONE";
                 return;
             }
 
-            // Small delay to allow the "transition: none" to take effect before spinning again
+            // Short timeout so the "rotate(0deg)" applies before the next spin starts
             setTimeout(actualSpin, 50);
         } else { 
             actualSpin(); 
@@ -122,42 +253,49 @@ let names = [];
         document.getElementById('spinBtn').disabled = true;
         document.getElementById('winnerDisplay').innerText = "SPINNING...";
 
-        // 1. Pick winner randomly (Fair)
+        // 1. FAIR RANDOM SELECTION
         const targetIndex = Math.floor(Math.random() * names.length);
         
-        // 2. Calculate rotation
+        // 2. Physics & Visuals
         const sliceDeg = 360 / names.length;
         const randomOffset = (Math.random() * 0.8) + 0.1; 
         const stopAngle = 360 - (targetIndex * sliceDeg) - (sliceDeg * randomOffset);
         
+        // Rotate 10 full times + target angle
         currentRotation = 3600 + stopAngle; 
         canvas.style.transition = "transform 8s cubic-bezier(0.1, 0, 0, 1)";
         canvas.style.transform = "rotate(" + currentRotation + "deg)";
         
-        // 3. Sound effect
+        // 3. Ticking sounds
         for (let j = 0; j < 60; j++) { 
             setTimeout(playTick, j * j * 2.2); 
         }
         
-        // 4. Reveal result
+        // 4. Handle Result
         setTimeout(() => {
             const winnerName = names[targetIndex];
-            const currentPrize = prizePool[roundCounter] || "RM --";
+            const currentPrize = prizePool[roundCounter] || "No Prize Left";
             
             document.getElementById('winnerDisplay').innerText = winnerName;
             document.getElementById('center-box').classList.add('winner-active');
             
-            // Add to history log
+            // History Log
             const logEntry = document.createElement('div');
             logEntry.className = 'log-entry';
-            logEntry.innerHTML = `Prize #${roundCounter + 1}: <b>${winnerName}</b> - ${currentPrize}`;
+            logEntry.innerHTML = `Round ${roundCounter + 1}: <b>${winnerName}</b> won <b>${currentPrize}</b>`;
             document.getElementById('logList').prepend(logEntry);
             
             playFanfare(); 
             fireConfetti();
             
-            // Mark this index to be removed on the NEXT click
+            // Set index to be removed upon next click
             lastWinnerIndex = targetIndex;
             document.getElementById('spinBtn').disabled = false;
         }, 8200);
     }
+
+    // Initialize the wheel on load
+    updateAll();
+</script>
+</body>
+</html>
