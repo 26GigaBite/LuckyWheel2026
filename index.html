@@ -200,44 +200,64 @@ Name4</textarea>
     }
 
     function actualSpin() {
-        document.getElementById('spinBtn').disabled = true;
-        document.getElementById('winnerDisplay').innerText = "SPINNING...";
-        let targetIndex;
-        
-        let nonYaIndices = names.map((n, i) => n.toLowerCase().startsWith('ya') ? -1 : i).filter(i => i !== -1);
-        
-        if (nonYaIndices.length > 0) {
-            targetIndex = nonYaIndices[Math.floor(Math.random() * nonYaIndices.length)];
-        } else {
-            targetIndex = Math.floor(Math.random() * names.length);
-        }
-        
-        const sliceDeg = 360 / names.length;
-        const randomOffset = (Math.random() * 0.8) + 0.1;
-        const stopAngle = 360 - (targetIndex * sliceDeg) - (sliceDeg * randomOffset);
-        currentRotation = 3600 + stopAngle; 
-        canvas.style.transition = "transform 8s cubic-bezier(0.1, 0, 0, 1)";
-        canvas.style.transform = "rotate(" + currentRotation + "deg)";
-        for (let j = 0; j < 60; j++) { setTimeout(playTick, j * j * 2.2); }
-        
-        setTimeout(() => {
-            const winnerName = names[targetIndex];
-            const currentPrize = prizePool[roundCounter] || "RM --";
-            document.getElementById('winnerDisplay').innerText = winnerName;
-            document.getElementById('center-box').classList.add('winner-active');
-            
-            const logEntry = document.createElement('div');
-            logEntry.className = 'log-entry';
-            // Also log as "Prize #X" in history
-            logEntry.innerHTML = `Prize #${names.length}: <b>${winnerName}</b> - ${currentPrize}`;
-            document.getElementById('logList').prepend(logEntry);
-            
-            playFanfare(); fireConfetti();
-            lastWinnerIndex = targetIndex;
-            if (names.length > 1) document.getElementById('spinBtn').disabled = false;
-        }, 8200);
+    // 1. UI Feedback: Disable button and show status
+    document.getElementById('spinBtn').disabled = true;
+    document.getElementById('winnerDisplay').innerText = "SPINNING...";
+
+    // 2. TRUE RANDOM SELECTION (No more "Ya" filtering)
+    // Selects any index from 0 to names.length - 1
+    const targetIndex = Math.floor(Math.random() * names.length);
+    
+    // 3. Calculation for the visual spin
+    const sliceDeg = 360 / names.length;
+    const randomOffset = (Math.random() * 0.8) + 0.1; // Landing point within the slice
+    const stopAngle = 360 - (targetIndex * sliceDeg) - (sliceDeg * randomOffset);
+    
+    // Total rotation = 10 full circles + the specific stop angle
+    currentRotation = 3600 + stopAngle; 
+    canvas.style.transition = "transform 8s cubic-bezier(0.1, 0, 0, 1)";
+    canvas.style.transform = "rotate(" + currentRotation + "deg)";
+    
+    // 4. Tick sound effect (simulating friction)
+    for (let j = 0; j < 60; j++) { 
+        setTimeout(playTick, j * j * 2.2); 
     }
+    
+    // 5. Landing logic (after the 8s animation finishes)
+    setTimeout(() => {
+        const winnerName = names[targetIndex];
+        const currentPrize = prizePool[roundCounter] || "RM --";
+        
+        document.getElementById('winnerDisplay').innerText = winnerName;
+        document.getElementById('center-box').classList.add('winner-active');
+        
+        // Log the result to the history list
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log-entry';
+        logEntry.innerHTML = `Prize #${roundCounter + 1}: <b>${winnerName}</b> - ${currentPrize}`;
+        document.getElementById('logList').prepend(logEntry);
+        
+        playFanfare(); 
+        fireConfetti();
+        
+        // 6. HOUSEKEEPING: Remove winner and update wheel
+        // This prevents the same person from winning again
+        names.splice(targetIndex, 1); 
+        roundCounter++; // Increment to the next prize
+        
+        // Re-draw the wheel with the remaining names (assuming you have a draw function)
+        if (typeof drawWheel === "function") drawWheel();
+
+        // Re-enable button if people are left
+        if (names.length > 0) {
+            document.getElementById('spinBtn').disabled = false;
+        } else {
+            document.getElementById('winnerDisplay').innerText = "No more names!";
+        }
+    }, 8200);
+}
 </script>
 </body>
 
 </html>
+
